@@ -23,37 +23,40 @@ const db = admin.database();
 app.post('/plisio-webhook', async (req, res) => {
   const data = req.body;
 
-  // Only process completed transactions
+  // ✅ Only process completed transactions
   if (data.status === 'completed') {
     const amount = parseFloat(data.amount);
-    const address = data.source_currency;
+    const address = data.wallet_hash;
     const timestamp = Date.now();
+    const userId = data.order_name; // Assume this holds the UID
 
     try {
-      // Update User Balance (Replace "user_id_here" with your logic later)
-      const balanceRef = db.ref('users/user_id_here/balance');
-      const historyRef = db.ref('users/user_id_here/deposit_history');
+      // ✅ Firebase Paths
+      const balanceRef = db.ref(`users/${userId}/balance`);
+      const historyRef = db.ref(`users/${userId}/deposit_history`);
 
-      // Updating balance
+      // 🔁 Get current balance
       const snapshot = await balanceRef.once('value');
       const currentBalance = snapshot.val() || 0;
+
+      // ✅ Update balance
       await balanceRef.set(currentBalance + amount);
 
-      // Adding transaction to history
+      // ✅ Add to deposit history
       await historyRef.push({
         amount,
         address,
         timestamp
       });
 
-      console.log('✅ Balance and history updated successfully');
+      console.log(`✅ Deposit added for user ${userId}`);
       res.status(200).send('Success');
     } catch (error) {
-      console.error('❌ Error updating Firebase:', error);
+      console.error('❌ Firebase Update Error:', error);
       res.status(500).send('Server Error');
     }
   } else {
-    console.log('Transaction not completed, skipping...');
+    console.log('⏭️ Transaction skipped (not completed)');
     res.status(200).send('Skipped');
   }
 });
